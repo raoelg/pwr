@@ -2,8 +2,7 @@ Package: pwr
 Version: 0.1
 Date: 2005-05-06
 Title: Compute power from simulations
-Author: Raoul Grasman
-Maintainer: Raoul Grasman <rgrasman@uva.nl>
+Author@R: person(c("Raoul", "P.","P.","P."), "Grasman", email="rgrasman@uva.nl", role=c("aut","cre","cph"))
 Depends: R (>= 2.3.0)
 Imports: stats
 Description: Use simulations to estimate power of statistical tests given an effect size
