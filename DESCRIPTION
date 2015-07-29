@@ -1,1 +1,12 @@
+Package: pwr
+Version: 0.1
+Date: 2005-05-06
 Title: Compute power from simulations
+Author: Raoul Grasman
+Maintainer: Raoul Grasman <rgrasman@uva.nl>
+Depends: R (>= 2.3.0)
+Imports: stats
+Description: Use simulations to estimate power of statistical tests given an effect size
+License: GPL-2
+URL: http://github.com/raoelg/pwr
+BugReports: http://github.com/raoelg/pwr/issues
