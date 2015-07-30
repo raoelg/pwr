@@ -36,43 +36,30 @@ pwr.1way <-
 #' @return  A vector of simulation based power estimates for each of the (interaction) effects.
 #' @examples
 #' n = 1:12 * 5
-#' power = sapply(n, pwr.factorial, mu = 0.3 * (row(diag(3))+col(diag(3))))
-#' require(ggplot2)
-#' qplot(n, power[2,], geom=c('point', 'smooth'))
+#' power = sapply(n, pwr.factorial, delta = c(Ab=0.4, Ac=0.4))
+#' ggplot2::qplot(n, power[1,], geom=c('point', 'smooth'))
 pwr.factorial <-
-function (n, design = expand.grid(A=letters[1:3], B=LETTERS[1:3]),
-    delta = 0.2, mu = delta * slice.index(array(0, dim = sapply(design,
-        nlevels)),1), alpha = 0.05, nsim = 100)
+function (n, delta = 0.2, design = expand.grid(A=letters[1:3], B=LETTERS[1:2]),
+    alpha = 0.05, nsim = 200)
 {
-	if(missing(n)) stop("'n' not specified")
-    df = design[rep(1:nrow(design), n), ]
-    names(df) = names(design)
-    formula = as.formula(paste("y ~ ", paste(names(df), collapse="*")))
-    mf = model.frame(~A*B, design)
-    mm = model.matrix(mf, design)
-    # lmfit = lm(y ~ V1*V2, transform(expand.grid(V1=letters[1:3],V2=LETTERS[1:3]), y= rnorm(10*9)));
-    # lmfit$coefficients[] = c(0,0,1,2,0,0,0,0,0)
-    # kan zo: lm(simulate(lmfit,10) ~ V1*V2, lmfit$model)
-    # of zo: lmfit$call$formula[[2]] = expression(as.matrix(simulate(lmfit,100)))[[1]]; eval(lmfit$call); summary(aov(.Last.value))
-    ngroups = prod(sapply(design, nlevels))
-    lmfit = lm(formula, transform(design, y = rnorm(n*ngroups))); # y should be a unique name
-    if (length(names(delta)) > 0)
-      lmfit$coefficients[names(delta)] = delta
-    else
-      lmfit$coefficients[] = delta
-    lmfit$call[[2]] = formula
-    lmfit$call$formula[[2]] = expression(as.matrix(simulate(lmfit, nsim)))[[1]] # change dependent to nsim simulated response vectors from model
-    res = summary(aov(eval(lmfit$call))) # simulate and fit the model and return a summary anova table for each simulated response vector
-#     res = rowMeans(replicate(nsim, {
-#         y = rep(0, nrow(df))
-#         for (i in ncol(df)) y = y + mu[df[, i], i]
-#         df$y = y + rnorm(y)
-#         fit <<- anova(lm(formula, df))
-#         fit$Pr
-#     }) < alpha)
-#    names(res) = rownames(fit);
-    attr(res, "lm") = lmfit
-    res
-    structure(rowMeans(sapply(res, "$.data.frame", "Pr") < alpha), names=gsub("\\s","", rownames(res[[1]])), anovas = res, model = lmfit, design = design, alpha = alpha)
+  if(missing(n)) stop("'n' not specified")
+  df = design[rep(1:nrow(design), n), ]
+  names(df) = names(design)
+  formula = as.formula(paste("y ~ ", paste(names(df), collapse="*")))
+  ngroups = prod(sapply(design, nlevels))
+  df = transform(design, y = rnorm(n*ngroups)) # y should be a unique name
+  lmfit = lm(formula, df);
+  lmfit$coefficients[] = 0;
+  if (length(names(delta)) > 0)
+    lmfit$coefficients[names(delta)] = delta
+  else
+    lmfit$coefficients[] = delta
+  lmfit$fitted.values = drop(model.matrix(lmfit) %*% lmfit$coefficients)
+  lmfit$call[[2]] = formula
+  lmfit$call$formula[[2]] = expression(as.matrix(simulate(lmfit, nsim)))[[1]] # change dependent to nsim simulated response vectors from model
+  res = summary(aov(eval(lmfit$call))) # simulate and fit the model and return a summary anova table for each simulated response vector
+  attr(res, "lm") = lmfit
+  res
+  structure(rowMeans(sapply(res, "$.data.frame", "Pr") < alpha), names=gsub("\\s","", rownames(res[[1]])), anovas = res, model = lmfit, design = design, alpha = alpha)
 }
 
