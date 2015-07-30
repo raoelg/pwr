@@ -50,7 +50,7 @@ function (n, delta = 0.2, design = expand.grid(A=letters[1:3], B=LETTERS[1:2]),
   df = transform(design, y = rnorm(n*ngroups)) # y should be a unique name
   lmfit = lm(formula, df);
   lmfit$coefficients[] = 0;
-  if (length(names(delta)) > 0)
+  if (length(names(delta)) > 1)
     lmfit$coefficients[names(delta)] = delta
   else
     lmfit$coefficients[] = delta
@@ -60,6 +60,32 @@ function (n, delta = 0.2, design = expand.grid(A=letters[1:3], B=LETTERS[1:2]),
   res = summary(aov(eval(lmfit$call))) # simulate and fit the model and return a summary anova table for each simulated response vector
   attr(res, "lm") = lmfit
   res
-  structure(rowMeans(sapply(res, "$.data.frame", "Pr") < alpha), names=gsub("\\s","", rownames(res[[1]])), anovas = res, model = lmfit, design = design, alpha = alpha)
+  structure(rowMeans(sapply(res, "$.data.frame", "Pr") < alpha), names=gsub("\\s","", rownames(res[[1]])), anovas = res, model = lmfit, design = design, alpha = alpha, formula = formula)
 }
 
+pwr.manova <-
+  function (n, ndep=2, delta = 0, design = expand.grid(A=letters[1:3], B=factor(1:2)),
+            M = ~ A, X = ~ 0, test = c("Pillai", "Wilks", "Hotelling-Lawley",
+            "Roy", "Spherical"), Sigma= diag(ndep), alpha = 0.05, nsim = 200)
+  {
+    if (missing(n)) stop("'n' not specified")
+    test = match.arg(test)
+    formula = as.formula(paste("cbind(", paste("y",1:ndep, sep="", collapse=", "), ") ~ ", paste(names(df), collapse="*")))
+    ngroups = prod(sapply(design, levels))
+    df = transform(design, y = matrix(rnorm(n*ngroups*ndep),n*ngroups,ndep)); transform(design, y1 = rep(0,n*ngroups)); for(i in 2:ndep) df[[paste('y',i,sep='')]] = rep(0,n*ngroups);
+    lmfit = lm(formula, df)
+    lmfit$coefficients[] = 0;
+    if (is.list(delta) && is.null(names(delta))) names(delta) = paste('y',1:length(delta),sep='') # make sure listed effects have names
+    delta = unlist(delta)
+    if (length(delta) > 1)
+      lmfit$coefficients[do.call(rbind, strsplit(names(unlist(delta)), "\\."))[,2:1]] = delta
+    else
+      lmfit$coefficients[] = delta
+    lmfit$fitted.values = drop(model.matrix(lmfit) %*% coef(lmfit))
+    lmfit$call[[2]] = formula
+    ssd   = SSD(lmfit)
+    Resid = matrix(rnorm(nsim*length(lmfit$resid)), ncol=ncol(lmfit$resid)) %*% chol(ssd$SSD / ssd$df)
+    sims  = array(fitted(lmfit), c(nrow(lmfit$resid), ncol(lmfit$resid), nsim)) + aperm(array(Resid, c(nrow(lmfit$resid), nsim, ncol(lmfit$resid))), c(1,3,2))
+    res   = apply(sims, 3, function(y) anova(lm.fit(x=model.matrix(lmfit), y), M=M, X=X, test=test, idata=design))
+    structure(rowMeans(sapply(res, "$.data.frame", "Pr") < alpha), names=gsub("\\s","", rownames(res[[1]])), anovas = res, model = lmfit, design = design, alpha = alpha, formula = formula)
+  }
